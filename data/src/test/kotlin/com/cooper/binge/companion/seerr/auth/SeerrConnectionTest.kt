@@ -19,6 +19,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import okhttp3.Headers.Companion.headersOf
@@ -57,6 +58,12 @@ class SeerrConnectionTest {
             apis = SeerrApiFactory(logRequests = false),
             clock = clock,
         )
+
+    /**
+     * Runs [block] on a real dispatcher. A disconnect bounds its logout with a timeout, and on the test scheduler runTest skips that
+     * timeout ahead while the call is still out on OkHttp's thread, so the logout is cancelled before the server sees it.
+     */
+    private suspend fun <T> ioTime(block: suspend () -> T): T = withContext(Dispatchers.IO) { block() }
 
     @After
     fun tearDown() = server.close()
@@ -295,7 +302,7 @@ class SeerrConnectionTest {
             runCatching { sut.api().authenticatedUser() }
             assertEquals(SeerrConnectionHealth.Unauthorized, sut.health.first())
 
-            sut.disconnect()
+            ioTime { sut.disconnect() }
             assertEquals(SeerrConnectionHealth.NotConnected, sut.health.first())
         }
 
@@ -556,7 +563,7 @@ class SeerrConnectionTest {
             sut.logIn(baseUrl, SeerrLoginRequest.Local("s@example.com", "pw")).getOrThrow()
             repeat(3) { server.takeRequest() }
 
-            sut.disconnect()
+            ioTime { sut.disconnect() }
 
             val logout = server.takeRequest()
             assertEquals("/api/v1/auth/logout", logout.url.encodedPath)
@@ -567,7 +574,7 @@ class SeerrConnectionTest {
             server.enqueueProfile(json("""{"version":"3.1.0"}"""), json("""{"initialized":true}"""))
             sut.connect(baseUrl, SeerrAuth.ApiKey("k3y")).getOrThrow()
 
-            sut.disconnect()
+            ioTime { sut.disconnect() }
 
             assertEquals(7, server.requestCount)
         }
@@ -603,7 +610,7 @@ class SeerrConnectionTest {
         runTest {
             server.enqueue(json("""{"id":42}""", headersOf("Set-Cookie", "connect.sid=s3ss10n; Path=/")))
             server.enqueueProfile(json("""{"version":"3.1.0"}"""), json("""{"initialized":true}"""))
-            server.enqueue(json("""{"status":"ok"}""").newBuilder().headersDelay(30, TimeUnit.SECONDS).build())
+            server.enqueue(json("""{"status":"ok"}""").newBuilder().headersDelay(1, TimeUnit.SECONDS).build())
             val sut = connection(backgroundScope)
             sut.logIn(baseUrl, SeerrLoginRequest.Local("s@example.com", "pw")).getOrThrow()
             repeat(3) { server.takeRequest() }
@@ -615,9 +622,11 @@ class SeerrConnectionTest {
             assertEquals("/api/v1/auth/logout", server.takeRequest(5, TimeUnit.SECONDS)?.url?.encodedPath)
             assertEquals(true, sut.disconnecting.value)
             assertTrue(sut.credentials.first() != null)
+            // The caller going away (Settings popped) does not stop it: the disconnect still finishes the local clear.
             disconnecting.cancelAndJoin()
 
             assertEquals(false, sut.disconnecting.value)
+            assertNull(sut.credentials.first())
         }
 
     @Test
@@ -629,7 +638,7 @@ class SeerrConnectionTest {
             sut.connect(baseUrl, SeerrAuth.ApiKey("k3y")).getOrThrow()
             assertEquals(false, sut.disconnecting.value)
 
-            sut.disconnect()
+            ioTime { sut.disconnect() }
 
             assertEquals(false, sut.disconnecting.value)
         }
@@ -645,7 +654,7 @@ class SeerrConnectionTest {
 
             sut.markSessionShared()
             assertEquals(true, (sut.credentials.first()?.auth as SeerrAuth.Session).shared)
-            sut.disconnect()
+            ioTime { sut.disconnect() }
 
             assertNull(sut.credentials.first())
             assertEquals("No logout: the other device is still using this session", before, server.requestCount)
@@ -661,7 +670,7 @@ class SeerrConnectionTest {
             val saved = sut.logIn(baseUrl, SeerrLoginRequest.Local("s@example.com", "pw")).getOrThrow()
             repeat(3) { server.takeRequest() }
 
-            sut.signOut()
+            ioTime { sut.signOut() }
 
             assertEquals("/api/v1/auth/logout", server.takeRequest().url.encodedPath)
             assertNull(sut.credentials.first())
@@ -681,9 +690,9 @@ class SeerrConnectionTest {
             server.enqueueProfile(json("""{"version":"3.1.0"}"""), json("""{"initialized":true}"""))
             val sut = connection(backgroundScope)
             sut.connect(baseUrl, SeerrAuth.ApiKey("k3y")).getOrThrow()
-            sut.signOut()
+            ioTime { sut.signOut() }
 
-            sut.disconnect()
+            ioTime { sut.disconnect() }
 
             assertNull(sut.signedOutServer.first())
         }
@@ -696,7 +705,7 @@ class SeerrConnectionTest {
             val sut = connection(backgroundScope)
             sut.connect(baseUrl, SeerrAuth.ApiKey("k3y")).getOrThrow()
 
-            sut.disconnect()
+            ioTime { sut.disconnect() }
 
             assertNull(sut.credentials.first())
             assertTrue(runCatching { sut.authenticatedUser() }.exceptionOrNull() is NotConnectedException)
