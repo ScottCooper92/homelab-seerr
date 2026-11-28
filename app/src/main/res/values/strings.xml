@@ -258,6 +258,7 @@
     <string name="send_address_sending">Sending…</string>
     <string name="send_address_failed">The TV didn\'t take the address. Check that it still shows the code and that both are on the same Wi-Fi, then try again.</string>
     <string name="send_address_sent">Sent. The TV at %1$s has the address and is checking the server. Carry on there.</string>
+    <string name="send_address_sent_scan">Sent. The TV at %1$s has the address and is checking the server. To sign it in, scan the code on the TV from this app instead.</string>
     <string name="send_signin_continue_as">Continue as %1$s</string>
     <string name="send_signin_continue_as_you">Continue as you</string>
     <string name="send_signin_session">Signing in the TV at %1$s…</string>
@@ -376,7 +377,7 @@
     <string name="tv_settings_open_job">Open</string>
     <string name="tv_settings_group_household">Household</string>
     <string name="tv_settings_agents_note">Switch an agent on or off here. Its details are changed on your phone.</string>
-    <string name="tv_settings_agent_unavailable">This agent\'s settings couldn\'t be read. Try again from your phone.</string>
+    <string name="tv_settings_agent_unavailable">This agent\'s settings couldn\'t be read.</string>
     <string name="tv_settings_agent_setup_first">This agent can\'t send until it is set up. Finish that on your phone.</string>
     <string name="tv_settings_agent_body">Switch this agent on or off. Its details are changed on your phone.</string>
     <string name="tv_settings_group_media">Media server &amp; services</string>
