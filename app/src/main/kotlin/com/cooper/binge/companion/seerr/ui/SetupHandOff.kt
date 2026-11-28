@@ -41,6 +41,9 @@ internal val HAND_OFF_LINGER: Duration = 6.seconds
 
 private const val PROGRESS_POLL_MILLIS = 500L
 
+/** Fresh codes the sign-in step gets when nobody finishes with one: at [HAND_OFF_SIGN_IN_TIMEOUT] each, about an hour in all. */
+private const val MAX_SIGN_IN_RENEWALS = 5
+
 /**
  * The television's "send the address from your phone" (#323): it opens a listener, shows its code through
  * [onState], and hands the address a phone sends to [onAddress]. Every way out closes it: [cancel], the scope
@@ -76,8 +79,12 @@ internal class SetupHandOff(
         signedIn = true
     }
 
+    /** How many times the sign-in step's code has been replaced since this was started, for [MAX_SIGN_IN_RENEWALS]. */
+    private var signInRenewals = 0
+
     fun start() {
         if (job?.isActive == true) return
+        signInRenewals = 0
         job = scope.launch(dispatcher) { listen() }
     }
 
@@ -151,8 +158,13 @@ internal class SetupHandOff(
                         val following = async { followSignIn() }
                         val stage = untilLocked(serving, following)
                         following.cancel()
-                        // Locked, or the sign-in timed out with the TV still on its sign-in step: that step shows a code, so a live one.
-                        if (stage == Stage.Locked) awaitStepWithCode() else progress() is HandOffProgress.SignIn
+                        // Locked, or the sign-in timed out with the TV still on its sign-in step: that step shows a code, so a live one,
+                        // for up to MAX_SIGN_IN_RENEWALS fresh codes. A TV left on that step overnight does not keep a port open forever.
+                        if (stage == Stage.Locked) {
+                            awaitStepWithCode()
+                        } else {
+                            progress() is HandOffProgress.SignIn && signInRenewals++ < MAX_SIGN_IN_RENEWALS
+                        }
                     }
                 }
             serving.cancelAndJoin()
