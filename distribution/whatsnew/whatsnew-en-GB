@@ -1,9 +1,9 @@
 Early access to Seerr Companion: manage your Seerr, Jellyseerr or Overseerr server from your phone or TV.
 
-New in this build:
-- Discover movies, TV, people and collections, with title search
-- Request a title, a season or a collection from its page, with 4K where your server allows it
-- A Watchlist button on title and series pages
-- Watch opens the title in your media server's app, or its web page
-- Seasons and episodes on series pages
-- A Discover tab on tablets
+New since 0.2.0:
+- Discover: Movies and TV hubs, search, filters, and pages for titles, series, people and collections
+- Request a title, season or collection, in 4K or for another user
+- Watchlist, blocklist and Watch in your media server's app
+- Search every setting
+- A refreshed look on phone, tablet and TV
+- Many fixes
